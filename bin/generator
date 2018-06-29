@@ -1,0 +1,54 @@
+#!/usr/bin/env node
+
+const program = require('commander');
+const chalk = require('chalk');
+const readline = require('readline');
+const error = chalk.bold.red;
+const info = chalk.bold.blue;
+const package = require('../package.json');
+const version = package.version;
+let dirValue;
+let env;
+
+program
+  .version(version, '-v, --version')  // 设置命令的版本号，从package.json中读取，可以用-v或--version查询
+  .usage('<dir> [options]')   // 设置命令的用法说明
+  .arguments('<dir> [env]')   // 设置命名后面要接的参数，<>的参数表示必要参数,[]表示可选参数
+  .action(function(dir, env) {  // action用于设置回调函数，其中回调函数的参数就是arguments中的参数
+    console.log(dir, env);
+    dirValue = dir;
+    env = env;
+  })
+  .description('<dir> must be input')  // 设置命令的描述
+  .parse(process.argv);                // 一般最后调用，用于解析process.argv参数
+
+if (typeof dir == 'undefined') {
+  console.log(error('must be input dir name!\n'));
+  console.log(error('example:\n'));
+  console.log(error('generater dir\n'));
+}
+
+const rl = readline.createInterface({
+  input: process.stdin,
+  output: process.stdout
+})
+
+main();
+
+function main() {
+  rl.question(info('do you need test, continue? [y/N] '), (answer, next) => {
+    console.log(answer);
+    //rl.close();
+    next();
+  });
+  rl.question(info('do you need demo, continue? [y/N] '), (answer, next) => {
+    console.log(answer);
+    next();
+  })
+  rl.question(info('do you need .gitignore, continue? [y/N] '), (answer) => {
+    console.log(answer);
+  })
+  rl.question(info('do you need vue project, continue? [y/N] '), (answer) => {
+    console.log(answer);
+  })
+}
