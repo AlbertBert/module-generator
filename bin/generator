@@ -5,6 +5,7 @@ const chalk = require('chalk');
 const readline = require('readline');
 const fs = require('fs');
 const path = require('path');
+const child_process = require('child_process');
 const error = chalk.bold.red;
 const info = chalk.bold.blue;
 const package = require('../package.json');
@@ -111,7 +112,15 @@ function createFolds() {
       copyTemplate('../template/js/index.js', 'src/index.js');
       if (program.vue) {
         mkdirs(dirValue + '/src/app', () => {
-          //copyTemplate()
+          // 复制vue文件夹下的文件到src/app下，不包括vue文件夹自身
+          const sourceDir = path.resolve(__dirname, '../template/vue/*');
+          const destDir = basePath + '/' + dirValue + '/src/app';
+          child_process.exec(`cp -rf ${sourceDir} ${destDir}`, (err, stdout, stderr) => {
+            if (err) {
+              console.error(`exec error: ${error}`);
+              return;
+            }
+          })
         })
       }
     })
