@@ -3,10 +3,13 @@
 const program = require('commander');
 const chalk = require('chalk');
 const readline = require('readline');
+const fs = require('fs');
+const path = require('path');
 const error = chalk.bold.red;
 const info = chalk.bold.blue;
 const package = require('../package.json');
 const version = package.version;
+const basePath = process.cwd();
 let dirValue;
 let env;
 
@@ -21,8 +24,8 @@ program
   })
   .description('<dir> must be input')  // 设置命令的描述
   .parse(process.argv);                // 一般最后调用，用于解析process.argv参数
-
-if (typeof dir == 'undefined') {
+// 若没有输入要生成的项目名，则会有报错提示
+if (typeof dirValue == 'undefined') {
   console.log(error('must be input dir name!\n'));
   console.log(error('example:\n'));
   console.log(error('generater dir\n'));
@@ -37,50 +40,102 @@ main();
 
 function main() {
   const step1 = readPromise(info('do you need test, continue? [y/N] '), (answer) => {
-    console.log(answer);
+    program.test = true;
   });
   const step2 = readPromise(info('do you need demo, continue? [y/N] '), (answer) => {
-    console.log(answer);
+    program.demo = true;
   })
   const step3 = readPromise(info('do you need .gitignore, continue? [y/N] '), (answer) => {
-    console.log(answer);
+    program.gitignore = true;
   })
   const step4 = readPromise(info('do you need vue project, continue? [y/N] '), (answer) => {
-    console.log(answer);
+    program.vue = true;
   })
-  const stepArray = [step1, step2, step3, step4];
+  //const stepArray = [step1, step2, step3, step4];
   // stepArray.reduce((temp, value, index) => {
   //   return temp.then(() => {
   //     return value();
   //   });
   // }, Promise.resolve())
-  compose(step1, step2, step3, step4);
+  var p = compose(step1, step2, step3, step4);
+  p.then(() => {
+    console.log(program.vue);
+    if (fs.existsSync(path.resolve(basePath, dirValue))) {
+      console.log(error('当前目录已存在！'))
+      return;
+    }
+    createFolds();
+  })
 }
 
+// 将逐行读取等待用户输入封装成一个个的promise，以便依次执行
 function readPromise(question, callback) {
   return function() {
     return new Promise((resolve) => {
       rl.question(question, (answer) => {
         if (/y|yes|ok/.test(answer)) {
           callback(answer);
-          resolve();
         }
+        resolve();
       })
     })
   }
 }
-
+// 使用数组的reduce方法使得多个promise能够依次串行执行
 function compose(...args) {
-  args.reduce((formerStep, laterStep) => {
-    //console.log(formerStep, laterStep);
-    // return function() {
-    //   return formerStep().then(() => {
-    //     return laterStep();
-    //   })
-    // }
-    return formerStep().then(() => {
-      return laterStep;
+  // 最终返回的结果执行完最后一个promise返回的结果
+  // 使用一个Promise.resolve()作为最开始的temp
+  return args.reduce((formerStep, laterStep) => {
+    return formerStep.then(() => {
+      return laterStep();
     })
+  }, Promise.resolve())
+}
+
+function createFolds() {
+  mkdirs(dirValue, (error) => {
+    console.log(__dirname);     // 执行命令的文件所在的路径
+    console.log(process.cwd())  // 执行命令时所在的路径
+    // README.md
+    copyTemplate('../template/md/README.md', 'README.md');
+    // package.json
+    copyTemplate('../template/package/package.json', 'package.json');
+    // demo
+    if (program.demo) {
+      mkdirs(dirValue + '/demo', () => {
+        copyTemplate('../template/html/index.html', 'demo/index.html');
+      })
+    }
+    // src
+    mkdirs(dirValue + '/src', () => {
+      copyTemplate('../template/js/index.js', 'src/index.js');
+      if (program.vue) {
+        mkdirs(dirValue + '/src/app', () => {
+          //copyTemplate()
+        })
+      }
+    })
+    // .gitignore
+    if (program.gitignore) {
+      copyTemplate('../template/gitignore/.gitignore', '.gitignore');
+    }
   })
-  //return function
+}
+
+function mkdirs(dirname, callback) {
+  fs.stat(dirname, (err, stats) => {
+    // stats=undefined说明目录不存在
+    if (stats == undefined) {
+      mkdirs(path.dirname(dirname), () => {
+        fs.mkdir(dirname, callback);
+      })
+    } else {
+      callback();
+    }
+  })
+}
+
+function copyTemplate(from, to) {
+  fs.createReadStream(path.resolve(__dirname, from))
+    .pipe(fs.createWriteStream(path.resolve(basePath, dirValue, to)));
 }
