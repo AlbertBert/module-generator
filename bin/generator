@@ -42,7 +42,8 @@ main();
 function main() {
   const curName = program.args.shift();
   const destinationPath = `${process.cwd()}/${curName}`;
-  const desPath = `${basePath}/${dirValue}`;
+  console.log(destinationPath);
+  const desPath = path.join(basePath, dirValue);
   console.log(desPath);
   const step1 = readPromise(info('do you need test, continue? [y/N] '), (answer) => {
     program.test = true;
@@ -71,17 +72,20 @@ function main() {
   //   });
   // }, Promise.resolve())
   var p = compose(step1, step2, step3, step4);
+  console.log(p);
   p.then(() => {
     console.log(program.vue);
     fs.readdir(desPath, (err, files) => {
-      if (err) {
+      if (err && err.code !== 'ENOENT') {
         throw err;
       }
+      console.log(files);
       if (files && files.length) {
         compose(p, step5, close).then(() => {
           createFolds();
         })
       } else {
+        console.log('111111');
         compose(p, close).then(() => {
           createFolds();
         })
@@ -184,5 +188,5 @@ function mkdirs(dirname, callback) {
 
 function copyTemplate(from, to) {
   fs.createReadStream(path.resolve(__dirname, from))
-    .pipe(fs.createWriteStream(path.resolve(basePath, dirValue, to)));
+    .pipe(fs.createWriteStream(path.join(basePath, dirValue, to)));
 }
