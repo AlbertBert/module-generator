@@ -40,6 +40,10 @@ const rl = readline.createInterface({
 main();
 
 function main() {
+  const curName = program.args.shift();
+  const destinationPath = `${process.cwd()}/${curName}`;
+  const desPath = `${basePath}/${dirValue}`;
+  console.log(desPath);
   const step1 = readPromise(info('do you need test, continue? [y/N] '), (answer) => {
     program.test = true;
   });
@@ -52,6 +56,14 @@ function main() {
   const step4 = readPromise(info('do you need vue project, continue? [y/N] '), (answer) => {
     program.vue = true;
   })
+  const step5 = readPromise(info('destination is not empty, continue? [y/N]'), (answer) => {
+    child_process.exec(`rm -rf ${desPath}`, (err, stdout, stderr) => {
+      if (err) {
+        console.error(`exec error: ${error}`);
+        return;
+      }
+    })
+  })
   //const stepArray = [step1, step2, step3, step4];
   // stepArray.reduce((temp, value, index) => {
   //   return temp.then(() => {
@@ -61,12 +73,25 @@ function main() {
   var p = compose(step1, step2, step3, step4);
   p.then(() => {
     console.log(program.vue);
-    if (fs.existsSync(path.resolve(basePath, dirValue))) {
-      console.log(error('当前目录已存在！'))
-      return;
-    }
-    createFolds();
+    fs.readdir(desPath, (err, files) => {
+      if (err) {
+        throw err;
+      }
+      if (files && files.length) {
+        compose(p, step5, close).then(() => {
+          createFolds();
+        })
+      } else {
+        compose(p, close).then(() => {
+          createFolds();
+        })
+      }
+    })
   })
+}
+
+function close() {
+  return rl.close();
 }
 
 // 将逐行读取等待用户输入封装成一个个的promise，以便依次执行
@@ -132,6 +157,15 @@ function createFolds() {
     copyTemplate('../template/eslint/.eslintrc', '.eslintrc')
     //.babelrc
     copyTemplate('../template/babel/.babelrc', '.babelrc')
+  })
+}
+
+function emptyDir(path, cb) {
+  fs.readdir(path, (err, files) => {
+    if (err) {
+      throw err;
+    }
+
   })
 }
 
