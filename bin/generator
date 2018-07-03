@@ -49,19 +49,26 @@ function main() {
   const desPath = path.join(basePath, dirValue);
   console.log(desPath);
   const step1 = readPromise(info('do you need test, continue? [y/N] '), (answer) => {
-    program.test = true;
+    if (/y|yes|ok|true/.test(answer)) {
+      program.test = true;
+    }
   });
   const step2 = readPromise(info('do you need demo, continue? [y/N] '), (answer) => {
-    program.demo = true;
+    if (/y|yes|ok|true/.test(answer)) {
+      program.demo = true;
+    }
   })
   const step3 = readPromise(info('do you need .gitignore, continue? [y/N] '), (answer) => {
-    program.gitignore = true;
+    if (/y|yes|ok|true/.test(answer)) {
+      program.gitignore = true;
+    } 
   })
   const step4 = readPromise(info('do you need vue project, continue? [y/N] '), (answer) => {
-    program.vue = true;
+    if (/y|yes|ok|true/.test(answer)) {
+      program.vue = true;
+    }
   })
   const step5 = readPromise(info('destination is not empty, continue? [y/N]'), (answer) => {
-    console.log(answer);
     if (/y|yes|ok|true/.test(answer)) {
       exec(`rm -rf ${desPath}`, (err, stdout, stderr) => {
         if (err) {
