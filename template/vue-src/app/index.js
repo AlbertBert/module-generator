@@ -1,7 +1,9 @@
-import test from './component/test.vue';
+// 插件开发的时候 这个是入口文件
 
-function install() {
-  if(install.installed) {
+import test from './components/test.vue';
+
+function install(Vue) {
+  if (install.installed) {
     return;
   }
   install.installed = true;
@@ -17,3 +19,5 @@ if (typeof window !== 'undefined' && window.Vue) {
 }
 
 export default VueTest;
+
+

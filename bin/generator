@@ -5,7 +5,10 @@ const chalk = require('chalk');
 const readline = require('readline');
 const fs = require('fs');
 const path = require('path');
+const fsExtra = require('fs-extra')
+const mkdirsSync = fsExtra.ensureDirSync;
 const child_process = require('child_process');
+const exec = child_process.exec;
 const error = chalk.bold.red;
 const info = chalk.bold.blue;
 const package = require('../package.json');
@@ -58,12 +61,19 @@ function main() {
     program.vue = true;
   })
   const step5 = readPromise(info('destination is not empty, continue? [y/N]'), (answer) => {
-    child_process.exec(`rm -rf ${desPath}`, (err, stdout, stderr) => {
-      if (err) {
-        console.error(`exec error: ${error}`);
-        return;
-      }
-    })
+    console.log(answer);
+    if (/y|yes|ok|true/.test(answer)) {
+      exec(`rm -rf ${desPath}`, (err, stdout, stderr) => {
+        if (err) {
+          console.error(`exec error: ${error}`);
+          return;
+        }
+        createFolds(desPath);
+      })
+    } else {
+      console.error(error(`aborting`));
+      process.exit(1);
+    }
   })
   //const stepArray = [step1, step2, step3, step4];
   // stepArray.reduce((temp, value, index) => {
@@ -71,26 +81,18 @@ function main() {
   //     return value();
   //   });
   // }, Promise.resolve())
-  var p = compose(step1, step2, step3, step4);
-  console.log(p);
-  p.then(() => {
-    console.log(program.vue);
-    fs.readdir(desPath, (err, files) => {
-      if (err && err.code !== 'ENOENT') {
-        throw err;
-      }
-      console.log(files);
-      if (files && files.length) {
-        compose(p, step5, close).then(() => {
-          createFolds();
-        })
-      } else {
-        console.log('111111');
-        compose(p, close).then(() => {
-          createFolds();
-        })
-      }
-    })
+  //var p = compose(step1, step2, step3, step4);
+  fs.readdir(desPath, (err, files) => {
+    if (err && err.code !== 'ENOENT') {
+      throw err;
+    }
+    if (files && files.length) {
+      compose(step1, step2, step3, step4, step5, close);
+    } else {
+      compose(step1, step2, step3, step4, close).then(() => {
+        createFolds(desPath);
+      })
+    }
   })
 }
 
@@ -103,9 +105,7 @@ function readPromise(question, callback) {
   return function() {
     return new Promise((resolve) => {
       rl.question(question, (answer) => {
-        if (/y|yes|ok/.test(answer)) {
-          callback(answer);
-        }
+        callback(answer);
         resolve();
       })
     })
@@ -122,71 +122,78 @@ function compose(...args) {
   }, Promise.resolve())
 }
 
-function createFolds() {
-  mkdirs(dirValue, (error) => {
-    console.log(__dirname);     // 执行命令的文件所在的路径
-    console.log(process.cwd())  // 执行命令时所在的路径
-    // README.md
-    copyTemplate('../template/md/README.md', 'README.md');
-    // package.json
-    copyTemplate('../template/package/package.json', 'package.json');
-    // demo
-    if (program.demo) {
-      mkdirs(dirValue + '/demo', () => {
-        copyTemplate('../template/html/index.html', 'demo/index.html');
-      })
+function createFolds(basePath) {
+  mkdirsSync(basePath);
+  // README.md
+  copyTemplate('md/README.md', 'README.md');
+  // package.json
+  copyTemplate('package/package.json', 'package.json');
+  // .eslintrc
+  copyTemplate('eslint/.eslintrc', '.eslintrc');
+  // .babelrc
+  copyTemplate('babel/.babelrc', '.babelrc');
+  // .gitignore
+  if (program.gitignore) {
+    copyTemplate('gitignore/.gitignore', '.gitignore');
+  }
+  // demo
+  if (program.demo) {
+    mkdirsSync(basePath + '/demo');
+    if (program.vue) {
+      copyTemplate('html/index-vue.html', 'demo/index.html');
+    } else {
+      copyTemplate('html/index.html', 'demo/index.html');
     }
-    // src
-    mkdirs(dirValue + '/src', () => {
-      copyTemplate('../template/js/index.js', 'src/index.js');
-      if (program.vue) {
-        mkdirs(dirValue + '/src/app', () => {
-          // 复制vue文件夹下的文件到src/app下，不包括vue文件夹自身
-          const sourceDir = path.resolve(__dirname, '../template/vue/*');
-          const destDir = basePath + '/' + dirValue + '/src/app';
-          child_process.exec(`cp -rf ${sourceDir} ${destDir}`, (err, stdout, stderr) => {
-            if (err) {
-              console.error(`exec error: ${error}`);
-              return;
-            }
-          })
-        })
+  }
+  // test
+  mkdirsSync(basePath + '/test');
+  // src
+  mkdirsSync(basePath + '/src');
+  const dest_dir = path.join(basePath, 'src/common');
+  const source_dir = path.join(__dirname, '..', 'template', '/css/common-less');
+  const destSrc = path.join(basePath, 'src');
+  const sourceSrc = path.join(__dirname, program.vue?'../template/vue-src':'../template/src');
+  console.log(source_dir, dest_dir);
+  console.log(sourceSrc, destSrc);
+  mkdirsSync(basePath + '/src');
+  exec(`cp -rf ${sourceSrc} ${destSrc}`, (err, stdout, stderr) => {
+    if (err) {
+      console.log(error(`exec error: ${err}`));
+    }
+    exec(`cp -r ${source_dir} ${dest_dir}`, (err, stdout, stderr) => {
+      if (err) {
+        console.log(error(`exec error: ${err}`));
       }
     })
-    // .gitignore
-    if (program.gitignore) {
-      copyTemplate('../template/gitignore/.gitignore', '.gitignore');
-    }
-    //.eslintrc
-    copyTemplate('../template/eslint/.eslintrc', '.eslintrc')
-    //.babelrc
-    copyTemplate('../template/babel/.babelrc', '.babelrc')
-  })
-}
-
-function emptyDir(path, cb) {
-  fs.readdir(path, (err, files) => {
-    if (err) {
-      throw err;
-    }
-
-  })
-}
-
-function mkdirs(dirname, callback) {
-  fs.stat(dirname, (err, stats) => {
-    // stats=undefined说明目录不存在
-    if (stats == undefined) {
-      mkdirs(path.dirname(dirname), () => {
-        fs.mkdir(dirname, callback);
-      })
-    } else {
-      callback();
+    switch (program.css) {
+      case 'css':
+      copyTemplate('css/style.css', basePath + '/src/index.css');
+      break;
+      default:
+      copyTemplate('css/style.less', basePath + '/src/index.less');
+      break;
     }
   })
 }
 
 function copyTemplate(from, to) {
-  fs.createReadStream(path.resolve(__dirname, from))
-    .pipe(fs.createWriteStream(path.join(basePath, dirValue, to)));
+  from = path.resolve(__dirname, '../template/', from);
+  to = path.join(basePath, dirValue, to);
+  try {
+    const data = fs.readFileSync(from);
+    fs.writeFileSync(to, data);
+    console.log(info('   create : ') + to);
+  } catch (err) {
+    console.log(error('   create : ' + to + ' fail'));
+  }
+}
+
+function ejsTemplate(to, name, state) {
+  try {
+    const contents = fs.readFileSync(path.join(__dirname, '..', 'templates', (name + '.ejs')), 'utf-8');
+    fs.writeFileSync(to, ejs.render(contents, state));
+    console.log(info('   create : ') + to);
+  } catch (err) {
+    console.log(error('   create : ' + to + ' fail'));
+  }
 }
